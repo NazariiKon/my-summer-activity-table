@@ -1,11 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from datetime import date, timedelta
+from datetime import date
 
 from src.api.dependencies import SessionDep
-from src.database import Base, engine
 from src.models.tasks import CategoryModel, DayModel, TaskModel
-from src.schemas.tasks import TaskSchema, CategorySchema
+from src.schemas.tasks import TaskSchema, CategorySchema, UpdateSchema
 
 router = APIRouter()
 
@@ -43,8 +42,36 @@ async def create_task(data: TaskSchema, session: SessionDep):
     )
     session.add(new_task)
     await session.commit()
-    return {"success": True, "message": "The task was created successfully"}
+    return new_task
 
+@router.delete("/tasks/{id}", tags=["Tasks"], summary="Remove the task by id")
+async def remove_task(id: int, session: SessionDep):
+    query = select(TaskModel).where(TaskModel.id == id)
+    result = await session.execute(query)
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="This task doesn't exist")
+    await session.delete(task)
+    await session.commit()
+    return {"success": True, "message": f"The task {id} was removed successfully"}
+
+@router.patch("/tasks/{id}", tags=["Tasks"], summary="Update the task")
+async def update_task(id: int, data: UpdateSchema, session: SessionDep):
+    query = select(TaskModel).where(TaskModel.id == id)
+    result = await session.execute(query)
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="This task doesn't exist")
+    updated_task = TaskModel(
+        id = id,
+        description = data.description,
+        completed = task.completed,
+        day_id = task.day_id,
+        category_id = task.category_id
+    )
+    await session.merge(updated_task)
+    await session.commit()
+    return update_task
 
 
 @router.get("/category/", tags=["Category"], summary="Get categories")

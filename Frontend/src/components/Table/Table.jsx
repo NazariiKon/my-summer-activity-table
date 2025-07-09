@@ -16,12 +16,39 @@ export default function Table() {
       day_id: dayId,
       category_id: catId,
     };
+
     fetch("http://127.0.0.1:8000/tasks/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
+    })
+      .then((response) => response.json())
+      .then((newTask) => setTasks((prev) => [...prev, newTask]))
+      .catch((error) => console.error("Error:", error));
+  }
+
+  function sendUpdateRequest(newValue, id) {
+    fetch(`http://127.0.0.1:8000/tasks/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        description: newValue,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => console.log("Success:", data))
+      .catch((error) => console.error("Error:", error));
+  }
+
+  function sendDeleteRequest(id) {
+    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+
+    fetch(`http://127.0.0.1:8000/tasks/${id}`, {
+      method: "DELETE",
     })
       .then((response) => response.json())
       .then((data) => console.log("Success:", data))
@@ -58,11 +85,23 @@ export default function Table() {
     setIsEditing({ id, dayId });
   }
 
+  function handleButtonClick(id) {
+    sendDeleteRequest(id);
+    inputRef.current.value = "";
+    setIsEditing({ id: null, dayId: null });
+  }
+
   function handleKeyDown(e) {
     if (e.key == "Enter") {
-      // console.log(inputRef.current.value);
       // send value to the server
-      sendPostRequest(inputRef.current.value, isEditing.dayId, isEditing.id);
+      const res = tasks.find(
+        (t) => t.day_id == isEditing.dayId && t.category_id == isEditing.id
+      );
+      if (res != null) {
+        sendUpdateRequest(inputRef.current.value, res.id);
+      } else {
+        sendPostRequest(inputRef.current.value, isEditing.dayId, isEditing.id);
+      }
     }
   }
 
@@ -104,12 +143,35 @@ export default function Table() {
                           : "bg-success"
                       }
                       key={categorie.id}
+                      value={t.id}
                       onMouseEnter={() =>
                         handleMouseEnter(categorie.id, day.id)
                       }
-                      onClick={() => handleMouseClick()}
+                      onClick={() => handleMouseClick(categorie.id, day.id)}
                     >
-                      {t?.description}
+                      {isEditing?.id === categorie.id &&
+                      isEditing?.dayId === day.id ? (
+                        <>
+                          <input
+                            className="w-100 h-100"
+                            autoFocus
+                            onKeyDown={handleKeyDown}
+                            defaultValue={t.description}
+                            ref={inputRef}
+                            onBlur={() =>
+                              setIsEditing({ id: null, dayId: null })
+                            }
+                          ></input>
+                          <button
+                            onMouseDown={() => handleButtonClick(t.id)}
+                            className="bg-danger border-danger"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        t.description
+                      )}
                     </td>
                   ) : (
                     <td
@@ -124,14 +186,17 @@ export default function Table() {
                         handleMouseEnter(categorie.id, day.id)
                       }
                       onClick={() => handleMouseClick(categorie.id, day.id)}
-                      onBlur={() => setIsEditing(null)}
                     >
-                      {isEditing?.id === categorie.id &&
-                        isEditing?.dayId === day.id && (
+                      {isEditing.id === categorie.id &&
+                        isEditing.dayId === day.id && (
                           <input
+                            className="w-100"
                             autoFocus
                             onKeyDown={handleKeyDown}
                             ref={inputRef}
+                            onBlur={() =>
+                              setIsEditing({ id: null, dayId: null })
+                            }
                           ></input>
                         )}
                     </td>

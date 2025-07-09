@@ -8,3 +8,6 @@ class TaskSchema(BaseModel):
 
 class CategorySchema(BaseModel):
     title: str
+
+class UpdateSchema(BaseModel):
+    description: str
